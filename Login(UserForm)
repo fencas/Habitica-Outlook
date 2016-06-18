@@ -1,0 +1,20 @@
+'Those codes are used to the Login UserForm. The second one picks the login info that were on the hidden draft; the second one, tries to
+'login in the Habitica and store the login info for later use
+
+Private Sub Login_Click()
+StoreLogin txuser.Value, txpass.Value
+GetLogin
+DoLogin
+If Mid(DoLogin, 12, 4) = "true" Then
+    MsgBox "Login successful!", vbInformation, "Login"
+    Unload Me
+Else
+    MsgBox "Error in connecting. Check your login settings and your internet connection.", vbExclamation, "Error"
+End If
+End Sub
+
+Private Sub UserForm_Initialize()
+GetLogin
+txuser.Value = user
+txpass.Value = pass
+End Sub
