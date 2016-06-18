@@ -88,7 +88,7 @@ MsgBox "This task has not been found in the database. Please check whether your 
 End Function
 
 '----------------------
-'This Function will pick all your characteres ToDo tasks at Habitica
+'This Function will pick all your ToDo tasks at Habitica
 Function GetTask()
 DoLogin
 On Error GoTo Error
@@ -112,7 +112,8 @@ End Function
 
 '----------------------
 'This sub is called when specially flagging a message. An InputBox will be opened to call what is the task difficulty and then 
-'call 
+'call. The task name will be the message sender email - date/time the message was received. Originally it was the message subject,
+'but the POST http does not support several special keys like * or +, so this way there will be less errors.
 Sub Follow_Up()
 On Error Resume Next
 Dim a As String
@@ -129,6 +130,8 @@ NewTask objMsg.Sender & " - " & objMsg.ReceivedTime, a, objMsg.Subject & vbNewLi
 Set objMsg = Nothing
 End Sub
 
+'----------------------------
+'This sub is called for a completed task related both to a flagged mail or a todo task.
 Sub MarkComplete()
 Dim a As String
 Dim objMsg As Object
@@ -147,6 +150,10 @@ CompleteTask objMsg.Sender & " - " & objMsg.ReceivedTime
 Set objMsg = Nothing
 End Sub
 
+'------------------------------------
+'This Function is called whenever a connection to Habitica is needed. It picks yur username and password input (in my case, I created
+'a button to open a UserForm for this reason) and find your ID and APIToken; then it uses both of them to log in and get your whole
+'stats (that will be used, for example, in a comparison to the new stats after a completed task)
 Function DoLogin()
 On Error GoTo Error
 Set objHTTP = CreateObject("MSXML2.ServerXMLHTTP")
@@ -188,6 +195,8 @@ Exit Function
 Error:
 End Function
 
+'----------------------------------
+'This Function is used by the UserForm to store your username and password as a hidden file in your draft folder
 Function StoreLogin(username As String, password As String)
 Dim oNs As Outlook.NameSpace
 Dim oFld As Outlook.Folder
@@ -202,6 +211,8 @@ oSItem.UserProperties("pass").Value = password
 oSItem.Save
 End Function
 
+'---------------------------------
+'This sub is called with the DoLogin function to retrieve your login info
 Sub GetLogin()
 Dim oNs As Outlook.NameSpace
 Dim oFL As Outlook.Folder
@@ -215,10 +226,15 @@ If oItem.Size <> 0 Then
 End If
 End Sub
 
+'--------------------------------------
+'THis sub opens the login userform
 Sub OpenLogin()
 Login.Show
 End Sub
 
+'-------------------------------
+'This Function is used to calculate the difference between your old and new stats in order to show in a popup window what did you get
+'with this new task completed
 Function Calculate(Stats As String, NewStats As String)
 Stats = Mid(Stats, InStr(1, Stats, """lvl"""))
 b = InStr(1, Stats, """gp""")
@@ -266,7 +282,8 @@ Debug.Print Prize
 Debug.Print Stats
 End Function
 
-'This Function works to pick the item regardless whether it is a message, a calendar or whatever
+'---------------------------
+'This Function gets the outlook item regardless whether it is a message, a calendar or whatever
 Function GetCurrentItem() As Object
     Dim objApp As Outlook.Application
     Set objApp = Application
@@ -279,7 +296,3 @@ Function GetCurrentItem() As Object
     End Select
     Set objApp = Nothing
 End Function
-
-'Sub Unload_Form()
-'TaskComplete.Hide
-'End Sub
