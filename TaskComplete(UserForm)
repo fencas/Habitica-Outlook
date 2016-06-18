@@ -1,0 +1,46 @@
+'This userform popsup when a new task is complete so that the user can see what it gained from XP, GP, Mana and prizes. It will close
+'after 4 seconds or when the user clicks it.
+
+Private Sub UserForm_Initialize()
+Call RemoveCaption(Me)
+End Sub
+
+Private Sub UserForm_Activate()
+Strt = Timer
+Do While Timer < Strt + 4
+    DoEvents
+Loop
+Me.Hide
+End Sub
+
+Private Sub Image2_Click()
+Me.Hide
+End Sub
+
+Private Sub Image3_Click()
+Me.Hide
+End Sub
+
+Private Sub Image4_Click()
+Me.Hide
+End Sub
+
+Private Sub prizelabel_Click()
+Me.Hide
+End Sub
+
+Private Sub xplabel_Click()
+Me.Hide
+End Sub
+
+Private Sub mplabel_Click()
+Me.Hide
+End Sub
+
+Private Sub gplabel_Click()
+Me.Hide
+End Sub
+
+Private Sub splabel_Click()
+Me.Hide
+End Sub
