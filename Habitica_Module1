@@ -1,0 +1,285 @@
+'---This is the main module that have to be made at Outlook VBA.---
+
+Public user As String
+Public pass As String
+Public ID As String
+Public Token As String
+Public Stats As String
+Public MP As String
+Public EXP As String
+Public GP As String
+Public SP As String
+Public Prize As String
+Public NewStats As String
+
+'-------------------
+'This Function calls a new Task at Habitica
+Function NewTask(Subject As String, Difficulty As String, Optional Description As String)
+DoLogin
+On Error GoTo Error
+Set objHTTP = CreateObject("MSXML2.ServerXMLHTTP")
+URL = "https://habitica.com/api/v3/tasks/user"
+'Dificuldades(priority) = 0.1 ; 1; 1.5; 2
+If Difficulty = "0" Then Difficulty = "0.1"
+If Difficulty = "2" Then Difficulty = "1.5"
+If Difficulty = "3" Then Difficulty = "2"
+Difficulty = Replace(Difficulty, ",", ".")
+
+With objHTTP
+    .Open "POST", URL, False
+    .setRequestHeader "User-Agent", "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0)"
+    .setRequestHeader "Content-type", "application/x-www-form-urlencoded"
+    .setRequestHeader "x-api-user", ID
+    .setRequestHeader "x-api-key", Token
+    .Send "text=" & Subject & "&type=todo&notes=" & Description & "&tags=2bee6c33-c6d1-408d-ab01-3afdc658403b&priority=" & _
+        Difficulty
+    .WaitForResponse
+    'Debug.Print .ResponseText
+End With
+Exit Function
+
+Error:
+MsgBox "There was a problem in registering this task. Please check your network connection " & _
+    "click on the button to try again.", vbCritical, "Error"
+End Function
+
+'---------------
+'This Function calls a success in a task at Habtica
+Function CompleteTask(Task As String)
+Todo = GetTask
+Parte = InStr(1, Todo, Task)
+If Parte = 0 Then GoTo Error
+Parte = InStr(Parte, Todo, """id""")
+TaskID = Mid(Todo, Parte + 6, 36)
+
+DoLogin
+Set objHTTP = CreateObject("MSXML2.ServerXMLHTTP")
+URL = "https://habitica.com/api/v3/tasks/" & TaskID & "/score/up"
+
+With objHTTP
+    .Open "POST", URL, False
+    .setRequestHeader "User-Agent", "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0)"
+    .setRequestHeader "Content-type", "application/x-www-form-urlencoded"
+    .setRequestHeader "x-api-user", ID
+    .setRequestHeader "x-api-key", Token
+    .Send
+    .WaitForResponse
+    NewStats = .ResponseText
+End With
+If Mid(NewStats, 12, 4) = "true" Then
+    Calculate Stats, NewStats
+    TaskComplete.xplabel.Caption = EXP
+    TaskComplete.mplabel.Caption = MP
+    TaskComplete.gplabel.Caption = GP
+    TaskComplete.splabel.Caption = SP
+    If Prize <> "" Then
+        TaskComplete.Height = 222
+        TaskComplete.prizelabel.Caption = Prize
+    Else
+        TaskComplete.Height = 137
+    End If
+    TaskComplete.Show
+End If
+Exit Function
+
+Error:
+MsgBox "This task has not been found in the database. Please check whether your network connection is active and if both the " & _
+    "task here and in Habitica have the same name and try again.", vbCritical, "Error"
+End Function
+
+'----------------------
+'This Function will pick all your characteres ToDo tasks at Habitica
+Function GetTask()
+DoLogin
+On Error GoTo Error
+Set objHTTP = CreateObject("MSXML2.ServerXMLHTTP")
+URL = "https://habitica.com/api/v3/tasks/user?type=todos"
+
+With objHTTP
+    .Open "GET", URL, False
+    .setRequestHeader "User-Agent", "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0)"
+    .setRequestHeader "x-api-user", ID
+    .setRequestHeader "x-api-key", Token
+    .Send
+    .WaitForResponse
+    GetTask = .ResponseText
+    'Debug.Print GetTask
+End With
+Exit Function
+
+Error:
+End Function
+
+'----------------------
+'This sub is called when specially flagging a message. An InputBox will be opened to call what is the task difficulty and then 
+'call 
+Sub Follow_Up()
+On Error Resume Next
+Dim a As String
+Dim objMsg As Object
+Set objMsg = GetCurrentItem()
+With objMsg
+    .MarkAsTask olMarkToday
+    .FlagRequest = objMsg.Subject
+    .Save
+End With
+a = InputBox("What is the task difficulty?" & vbNewLine & "0 - Very Easy" & vbNewLine & "1 - Easy" & vbNewLine & "2 - Medium" & _
+    vbNewLine & "3 - Hard", "Difficulty", 0)
+NewTask objMsg.Sender & " - " & objMsg.ReceivedTime, a, objMsg.Subject & vbNewLine & objMsg.Body
+Set objMsg = Nothing
+End Sub
+
+Sub MarkComplete()
+Dim a As String
+Dim objMsg As Object
+Set objMsg = GetCurrentItem()
+If TypeOf objMsg Is Outlook.TaskItem Then
+    objMsg.Status = olTaskComplete
+    objMsg.Save
+Else
+    With objMsg
+        .Categories = ""
+        .FlagStatus = olFlagComplete
+        .Save
+    End With
+End If
+CompleteTask objMsg.Sender & " - " & objMsg.ReceivedTime
+Set objMsg = Nothing
+End Sub
+
+Function DoLogin()
+On Error GoTo Error
+Set objHTTP = CreateObject("MSXML2.ServerXMLHTTP")
+URL = "https://habitica.com/api/v3/user/auth/local/login"
+GetLogin
+
+With objHTTP
+    .Open "POST", URL, False
+    .setRequestHeader "User-Agent", "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0)"
+    .setRequestHeader "Content-type", "application/x-www-form-urlencoded"
+    .Send "username=" & user & "&password=" & pass
+    .WaitForResponse
+    DoLogin = .ResponseText
+    ID = InStr(1, DoLogin, """id""")
+    If ID = 0 Then
+        MsgBox "Login error.", vbCritical, "Error"
+        Exit Function
+    End If
+    Token = InStr(1, DoLogin, """apiToken""")
+    ID = Mid(DoLogin, ID + 6, 36)
+    Token = Mid(DoLogin, Token + 12, 36)
+End With
+
+Set objHTTP = CreateObject("MSXML2.ServerXMLHTTP")
+URL = "https://habitica.com/api/v3/user"
+
+With objHTTP
+    .Open "GET", URL, False
+    .setRequestHeader "User-Agent", "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0)"
+    .setRequestHeader "Content-type", "application/x-www-form-urlencoded"
+    .setRequestHeader "x-api-user", ID
+    .setRequestHeader "x-api-key", Token
+    .Send
+    .WaitForResponse
+    Stats = .ResponseText
+End With
+Exit Function
+
+Error:
+End Function
+
+Function StoreLogin(username As String, password As String)
+Dim oNs As Outlook.NameSpace
+Dim oFld As Outlook.Folder
+Dim oSItem As Outlook.StorageItem
+Set oNs = Application.GetNamespace("MAPI")
+Set oFld = oNs.GetDefaultFolder(olFolderDrafts)
+Set oSItem = oFld.GetStorage("HabiticaLogin", olIdentifyBySubject)
+oSItem.UserProperties.Add "user", olText
+oSItem.UserProperties.Add "pass", olText
+oSItem.UserProperties("user").Value = username
+oSItem.UserProperties("pass").Value = password
+oSItem.Save
+End Function
+
+Sub GetLogin()
+Dim oNs As Outlook.NameSpace
+Dim oFL As Outlook.Folder
+Dim oItem As Outlook.StorageItem
+Set oNs = Application.GetNamespace("MAPI")
+Set oFld = oNs.GetDefaultFolder(olFolderDrafts)
+Set oItem = oFld.GetStorage("HabiticaLogin", olIdentifyBySubject)
+If oItem.Size <> 0 Then
+    user = oItem.UserProperties("user")
+    pass = oItem.UserProperties("pass")
+End If
+End Sub
+
+Sub OpenLogin()
+Login.Show
+End Sub
+
+Function Calculate(Stats As String, NewStats As String)
+Stats = Mid(Stats, InStr(1, Stats, """lvl"""))
+b = InStr(1, Stats, """gp""")
+e = InStr(b, Stats, ",")
+OldGP = Mid(Stats, b + 5, e - b - 5)
+If InStr(1, OldGP, ".") <> 0 Then OldGP = Mid(OldGP, 1, InStr(1, OldGP, ".") + 2)
+b = InStr(1, Stats, """exp""")
+e = InStr(b, Stats, ",")
+OldEXP = Mid(Stats, b + 6, e - b - 6)
+If InStr(1, OldEXP, ".") <> 0 Then OldEXP = Mid(OldEXP, 1, InStr(1, OldEXP, ".") - 1)
+b = InStr(1, Stats, """mp""")
+e = InStr(b, Stats, ",")
+OldMP = Mid(Stats, b + 5, e - b - 5)
+If InStr(1, OldMP, ".") <> 0 Then OldMP = Mid(OldMP, 1, InStr(1, OldMP, ".") - 1)
+'Debug.Print Stats
+b = InStr(1, NewStats, """gp""")
+e = InStr(b, NewStats, ",")
+NewGP = Mid(NewStats, b + 5, e - b - 5)
+If InStr(1, NewGP, ".") <> 0 Then NewGP = Mid(NewGP, 1, InStr(1, NewGP, ".") + 2)
+b = InStr(1, NewStats, """exp""")
+e = InStr(b, NewStats, ",")
+NewEXP = Mid(NewStats, b + 6, e - b - 6)
+If InStr(1, NewEXP, ".") <> 0 Then NewEXP = Mid(NewEXP, 1, InStr(1, NewEXP, ".") - 1)
+b = InStr(1, NewStats, """mp""")
+e = InStr(b, NewStats, ",")
+NewMP = Mid(NewStats, b + 5, e - b - 5)
+If InStr(1, NewMP, ".") <> 0 Then NewMP = Mid(NewMP, 1, InStr(1, NewMP, ".") - 1)
+
+a = InStr(1, NewStats, """dialog"":")
+If a = 0 Then
+    Prize = ""
+Else
+    b = InStr(a + 9, NewStats, """") + 1
+    e = InStr(b, NewStats, """") - b
+    Prize = Mid(NewStats, b, e)
+End If
+
+TP = Val(NewGP) - Val(OldGP)
+GP = Int(TP)
+SP = (TP - GP) * 100
+EXP = NewEXP - OldEXP
+MP = NewMP - OldMP
+Debug.Print "GP: " & GP & ";SP: " & SP & ";EXP: " & EXP & ";MP: " & MP
+Debug.Print Prize
+Debug.Print Stats
+End Function
+
+'This Function works to pick the item regardless whether it is a message, a calendar or whatever
+Function GetCurrentItem() As Object
+    Dim objApp As Outlook.Application
+    Set objApp = Application
+    On Error Resume Next
+    Select Case TypeName(objApp.ActiveWindow)
+        Case "Explorer"
+            Set GetCurrentItem = objApp.ActiveExplorer.Selection.Item(1)
+        Case "Inspector"
+            Set GetCurrentItem = objApp.ActiveInspector.currentItem
+    End Select
+    Set objApp = Nothing
+End Function
+
+'Sub Unload_Form()
+'TaskComplete.Hide
+'End Sub
