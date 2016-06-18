@@ -1,0 +1,51 @@
+'This code tracks a new ToDo to correspond on what is done on a Flagged message. The Application_Startup is needed to track it.
+
+Option Explicit
+Private WithEvents olSentItems As Items
+Private WithEvents Items As Outlook.Items
+  
+Private Sub Application_Startup()
+Dim objNS As NameSpace
+Dim Ns As Outlook.NameSpace
+Set objNS = Application.Session
+Set olSentItems = objNS.GetDefaultFolder(olFolderSentMail).Items
+Set Ns = Application.GetNamespace("MAPI")
+Set Items = Ns.GetDefaultFolder(olFolderTasks).Items
+Set objNS = Nothing
+End Sub
+  
+Private Sub olSentItems_ItemAdd(ByVal Item As Object)
+On Error Resume Next
+Dim prompt As String
+Dim a As String
+MailsSent
+If MsgBox("Acompanhar esta mensagem?", vbYesNo + vbQuestion, "Follow?") = vbYes Then
+    a = InputBox("Acompanhar esta mensagem em quantos dias?", "???", 7)
+    With Item
+        .MarkAsTask olMarkThisWeek
+        .TaskDueDate = Now + a
+        .Categories = "Follow"
+        .Save
+    End With
+End If
+End Sub
+
+Private Sub Items_ItemAdd(ByVal Item As Object)
+Dim a As String
+
+If TypeOf Item Is Outlook.TaskItem Then
+    a = InputBox("What is the task difficulty?" & vbNewLine & "0 - Very Easy" & vbNewLine & "1 - Easy" & vbNewLine & "2 - Medium" & _
+    vbNewLine & "3 - Hard", "Difficulty", 0)
+    NewTask Item.Subject, a, Item.Body
+    Item.Categories = "Task"
+    Item.Save
+End If
+End Sub
+
+Private Sub Items_ItemChange(ByVal Item As Object)
+Dim Task As Outlook.TaskItem
+If TypeOf Item Is Outlook.TaskItem And Item.Status = olTaskComplete Then
+    CompleteTask Item.Subject
+End If
+End Sub
+
