@@ -139,14 +139,15 @@ Set objMsg = GetCurrentItem()
 If TypeOf objMsg Is Outlook.TaskItem Then
     objMsg.Status = olTaskComplete
     objMsg.Save
+    CompleteTask objMsg.Subject
 Else
     With objMsg
         .Categories = ""
         .FlagStatus = olFlagComplete
         .Save
+        CompleteTask objMsg.Sender & " - " & objMsg.ReceivedTime
     End With
 End If
-CompleteTask objMsg.Sender & " - " & objMsg.ReceivedTime
 Set objMsg = Nothing
 End Sub
 
